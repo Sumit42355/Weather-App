@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+            transition: background 0.5s ease-in-out;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 500px;
+            margin-top: auto;
+            background: rgba(255, 255, 255, 0.304);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .left-container {
+            display: flex;
+            justify-content: left;
+        }
+        input {
+            width: 70%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .icon-button img {
+            width: 30px;
+            height: 30px;
+        }
+        #weather-icon {
+            width: 100px;
+            height: 100px;
+        }
+        .info-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(200, 200, 200, 0.8);
+            border-radius: 10px;
+        }
+        .weather-icons {
+            display: flex;
+            justify-content: space-between;
+        }
+        .weather-icons div {
+            text-align: center;
+            padding: 10px;
+        }
+        .weather-icons img {
+            width: 40px;
+            height: 40px;
+        }
+        .time-container {
+            margin-top: 20px;
+        }
+        .time-container img {
+            width: 50px;
+            height: 50px;
+        }
+    </style>
+</head>
+<body onload="getCurrentLocation()">
+    <div class="container">
+        <h2>Weather App</h2>
+        <div class="left-container">
+            <input type="text" id="city" placeholder="Enter city name">
+            <button class="icon-button" onclick="getWeather()">
+                <img src="https://cdn-icons-png.flaticon.com/512/751/751463.png" alt="Search">
+            </button>
+            <button class="icon-button" onclick="getCurrentLocation()">
+                <img src="https://cdn-icons-png.flaticon.com/512/684/684809.png" alt="Current Location">
+            </button>
+        </div>
+        <div id="weather"></div>
+        <div class="weather-icons">
+            <div id="temp-container">
+                <img src="https://www.freeiconspng.com/uploads/temperature-icon-png-4.png" alt="Temp">
+                <p id="temperature"></p>
+            </div>
+            <div id="humidity-container">
+                <img src="https://static-00.iconduck.com/assets.00/humidity-icon-1024x838-vqbjj1sp.png" alt="Humidity">
+                <p id="humidity"></p>
+            </div>
+            <div id="wind-container">
+                <img src="https://vectorified.com/images/wind-speed-icon-28.png" alt="Wind">
+                <p id="wind-speed"></p>
+            </div>
+        </div>
+        <div id="extra-info" class="info-container"></div>
+        <div class="time-container">
+            <div id="time-of-place"></div>
+            <div id="time-of-user"></div>
+        </div>
+    </div>
+
+    <script>
+        let intervalId;
+
+        async function getWeather(lat = null, lon = null) {
+            let city = document.getElementById('city').value;
+            const apiKey = 'e5b2c81ee0ba43eac9452d3af8ea5265';
+            let url = `https://api.openweathermap.org/data/2.5/weather?appid=${apiKey}&units=metric`;
+            
+            if (lat && lon) {
+                url += `&lat=${lat}&lon=${lon}`;
+            } else if (city) {
+                url += `&q=${city}`;
+            } else {
+                alert('Please enter a city or use current location.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('City not found');
+                
+                const data = await response.json();
+                const weatherContainer = document.getElementById('weather');
+                const extraInfoContainer = document.getElementById('extra-info');
+                const timeOfPlaceContainer = document.getElementById('time-of-place');
+                
+                const tempC = data.main.temp;
+                const tempF = (tempC * 9/5) + 32;
+                const weatherDescription = data.weather[0].description;
+                const humidity = data.main.humidity;
+                const windSpeed = data.wind.speed;
+                const icon = `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`;
+                const localTime = new Date((data.dt + data.timezone) * 1000);
+                const timeOfDay = getTimeOfDay(localTime.getUTCHours());
+                const timeOfPlace = localTime.toUTCString();
+                
+                document.body.style.backgroundImage = getBackgroundImage(weatherDescription);
+                document.body.style.backgroundColor = getBackgroundColor(weatherDescription);
+
+                weatherContainer.innerHTML = `
+                    <h3>${data.name}</h3>
+                    <img id="weather-icon" src="${icon}" alt="Weather Icon">
+                    <p><b>${weatherDescription.toUpperCase()}</b></p>
+                    <p>Temperature: ${tempC.toFixed(1)}°C | ${tempF.toFixed(1)}°F</p>
+                    <p>Time of Day: ${timeOfDay}</p>
+                `;
+                
+                document.getElementById('temperature').textContent = `${tempC.toFixed(1)}°C | ${tempF.toFixed(1)}°F`;
+                document.getElementById('humidity').textContent = `${humidity}%`;
+                document.getElementById('wind-speed').textContent = `${windSpeed} m/s`;
+                
+                extraInfoContainer.innerHTML = `
+                    <p>Humidity: ${humidity}%</p>
+                    <p>Wind Speed: ${windSpeed} m/s</p>
+                `;
+                
+                timeOfPlaceContainer.innerHTML = ` 
+                    <p>Time of Place: ${timeOfPlace}</p>
+                    <img src="${getSunMoonImage(localTime.getHours())}" alt="Sun/Moon">
+                `;
+            } catch (error) {
+                document.getElementById('weather').innerHTML = `<p style="color: red;">${error.message}</p>`;
+            }
+        }
+
+        function startWeatherUpdate() {
+            intervalId = setInterval(() => {
+                getWeather();
+            }, 10000);
+        }
+
+        function stopWeatherUpdate() {
+            clearInterval(intervalId);
+        }
+
+        function getTimeOfDay(hour) {
+            if (hour >= 5 && hour < 12) return 'Morning';
+            if (hour >= 12 && hour < 17) return 'Afternoon';
+            if (hour >= 17 && hour < 20) return 'Evening';
+            return 'Night';
+        }
+
+        function getBackgroundImage(description) {
+            const hour = new Date().getHours();
+            
+            if (description.includes('clear')) {
+                if (hour >= 5 && hour < 12) return "url('https://wallpapercave.com/wp/wp4491512.jpg')";
+                if (hour >= 12 && hour < 17) return "url('https://wallpapercave.com/wp/fhXeBAL.jpg')";
+                if (hour >= 17 || hour < 5) return "url('https://images.hdqwalls.com/download/road-street-night-outdoors-cityscape-evening-5k-xj-2560x1440.jpg')";
+            }
+            if (description.includes('cloud')) return "url('https://i.pinimg.com/originals/e6/1b/b5/e61bb56d9c10f71fa6bc94f25f194c80.png')";
+            if (description.includes('rain')) return "url('https://static.vecteezy.com/system/resources/previews/042/146/565/non_2x/ai-generated-beautiful-rain-day-view-photo.jpg')";
+            if (description.includes('snow')) return "url('https://clipart-library.com/images_k/snow-png-transparent/snow-png-transparent-25.png')";
+            return "url('https://thumbs.dreamstime.com/b/clean-weather-covid-sun-sitand-wheat-clean-weather-covid-sky-glow-color-full-178616369.jpg')";
+        }
+        
+        function getBackgroundColor(description) {
+            if (description.includes('clear')) return '#FFD700';
+            if (description.includes('cloud')) return '#B0C4DE';
+            if (description.includes('rain')) return '#4682B4';
+            if (description.includes('snow')) return '#ADD8E6';
+            return '#FFFFFF';
+        }
+        
+        function getSunMoonImage(hour) {
+    if (hour >= 6 && hour < 18) {
+        return 'https://static.vecteezy.com/system/resources/previews/009/663/724/large_2x/sun-sun-ray-icon-transparent-free-png.png'; // Sun
+    } else if (hour >= 18 && hour < 24) {
+        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon
+    } else {
+        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon (for night hours, including early morning)
+    }
+}
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        getWeather(position.coords.latitude, position.coords.longitude);
+                        startWeatherUpdate(); // Start updating weather every 10 seconds
+                    },
+                    error => {
+                        alert('Location access denied. Please enter a city manually.');
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by this browser.');
+            }
+        }
+    </script>
+</body>
+</html>
