@@ -74,6 +74,26 @@
             width: 50px;
             height: 50px;
         }
+        #forecast {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.forecast-day {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    border-radius: 10px;
+    width: 120px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.forecast-day img {
+    width: 50px;
+    height: 50px;
+}
     </style>
 </head>
 <body onload="getCurrentLocation()">
@@ -109,15 +129,19 @@
             <div id="time-of-user"></div>
         </div>
     </div>
+    <div id="forecast-container" class="info-container">
+        <h3>5-Day Forecast</h3>
+        <div id="forecast"></div>
+    </div>
 
     <script>
         let intervalId;
-
+    
         async function getWeather(lat = null, lon = null) {
             let city = document.getElementById('city').value;
             const apiKey = 'e5b2c81ee0ba43eac9452d3af8ea5265';
             let url = `https://api.openweathermap.org/data/2.5/weather?appid=${apiKey}&units=metric`;
-            
+    
             if (lat && lon) {
                 url += `&lat=${lat}&lon=${lon}`;
             } else if (city) {
@@ -126,16 +150,15 @@
                 alert('Please enter a city or use current location.');
                 return;
             }
-            
+    
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('City not found');
-                
+    
                 const data = await response.json();
                 const weatherContainer = document.getElementById('weather');
-                const extraInfoContainer = document.getElementById('extra-info');
                 const timeOfPlaceContainer = document.getElementById('time-of-place');
-                
+    
                 const tempC = data.main.temp;
                 const tempF = (tempC * 9/5) + 32;
                 const weatherDescription = data.weather[0].description;
@@ -145,10 +168,11 @@
                 const localTime = new Date((data.dt + data.timezone) * 1000);
                 const timeOfDay = getTimeOfDay(localTime.getUTCHours());
                 const timeOfPlace = localTime.toUTCString();
-                
+    
                 document.body.style.backgroundImage = getBackgroundImage(weatherDescription);
                 document.body.style.backgroundColor = getBackgroundColor(weatherDescription);
-
+                document.body.style.backgroundSize = 'cover'; // Ensure proper resizing
+    
                 weatherContainer.innerHTML = `
                     <h3>${data.name}</h3>
                     <img id="weather-icon" src="${icon}" alt="Weather Icon">
@@ -156,45 +180,88 @@
                     <p>Temperature: ${tempC.toFixed(1)}°C | ${tempF.toFixed(1)}°F</p>
                     <p>Time of Day: ${timeOfDay}</p>
                 `;
-                
+    
                 document.getElementById('temperature').textContent = `${tempC.toFixed(1)}°C | ${tempF.toFixed(1)}°F`;
                 document.getElementById('humidity').textContent = `${humidity}%`;
                 document.getElementById('wind-speed').textContent = `${windSpeed} m/s`;
-                
-                extraInfoContainer.innerHTML = `
-                    <p>Humidity: ${humidity}%</p>
-                    <p>Wind Speed: ${windSpeed} m/s</p>
-                `;
-                
+    
                 timeOfPlaceContainer.innerHTML = ` 
                     <p>Time of Place: ${timeOfPlace}</p>
                     <img src="${getSunMoonImage(localTime.getHours())}" alt="Sun/Moon">
                 `;
+    
+                // Now call the forecast function after ensuring data is available
+                getFiveDayForecast(data.name);
             } catch (error) {
                 document.getElementById('weather').innerHTML = `<p style="color: red;">${error.message}</p>`;
+                document.getElementById('temperature').textContent = "";
+                document.getElementById('humidity').textContent = "";
+                document.getElementById('wind-speed').textContent = "";
+                document.getElementById('forecast').innerHTML = "";
             }
         }
-
+    
+        async function getFiveDayForecast(city) {
+            const apiKey = 'e5b2c81ee0ba43eac9452d3af8ea5265';
+            const url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+    
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('City not found');
+    
+                const data = await response.json();
+                const forecastContainer = document.getElementById('forecast');
+                forecastContainer.innerHTML = '';
+    
+                const dailyForecast = {};
+                data.list.forEach(entry => {
+                    const date = entry.dt_txt.split(' ')[0];
+                    if (!dailyForecast[date] || entry.dt_txt.includes("12:00:00")) {
+                        dailyForecast[date] = entry;
+                    }
+                });
+    
+                Object.values(dailyForecast).forEach(forecast => {
+                    const dateObj = new Date(forecast.dt * 1000);
+                    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const temp = forecast.main.temp.toFixed(1); // Using `temp` instead of undefined `temp_max`
+                    const icon = `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`;
+                    const description = forecast.weather[0].description;
+    
+                    forecastContainer.innerHTML += `
+                        <div class="forecast-day">
+                            <p><strong>${weekday}</strong></p>
+                            <img src="${icon}" alt="Weather Icon">
+                            <p>${description}</p>
+                            <p>Temp: ${temp}°C</p>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                document.getElementById('forecast').innerHTML = `<p style="color: red;">${error.message}</p>`;
+            }
+        }
+    
         function startWeatherUpdate() {
             intervalId = setInterval(() => {
                 getWeather();
-            }, 10000);
+            }, 60000); // 1-minute interval (instead of 10 sec)
         }
-
+    
         function stopWeatherUpdate() {
             clearInterval(intervalId);
         }
-
+    
         function getTimeOfDay(hour) {
             if (hour >= 5 && hour < 12) return 'Morning';
             if (hour >= 12 && hour < 17) return 'Afternoon';
             if (hour >= 17 && hour < 20) return 'Evening';
             return 'Night';
         }
-
+    
         function getBackgroundImage(description) {
             const hour = new Date().getHours();
-            
+    
             if (description.includes('clear')) {
                 if (hour >= 5 && hour < 12) return "url('https://wallpapercave.com/wp/wp4491512.jpg')";
                 if (hour >= 12 && hour < 17) return "url('https://wallpapercave.com/wp/fhXeBAL.jpg')";
@@ -205,7 +272,7 @@
             if (description.includes('snow')) return "url('https://clipart-library.com/images_k/snow-png-transparent/snow-png-transparent-25.png')";
             return "url('https://thumbs.dreamstime.com/b/clean-weather-covid-sun-sitand-wheat-clean-weather-covid-sky-glow-color-full-178616369.jpg')";
         }
-        
+    
         function getBackgroundColor(description) {
             if (description.includes('clear')) return '#FFD700';
             if (description.includes('cloud')) return '#B0C4DE';
@@ -213,22 +280,19 @@
             if (description.includes('snow')) return '#ADD8E6';
             return '#FFFFFF';
         }
-        
+    
         function getSunMoonImage(hour) {
-    if (hour >= 6 && hour < 18) {
-        return 'https://static.vecteezy.com/system/resources/previews/009/663/724/large_2x/sun-sun-ray-icon-transparent-free-png.png'; // Sun
-    } else {
-        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon (for evening and night hours)
-    }
-}
-
-
+            return hour >= 6 && hour < 18
+                ? 'https://static.vecteezy.com/system/resources/previews/009/663/724/large_2x/sun-sun-ray-icon-transparent-free-png.png'
+                : 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png';
+        }
+    
         function getCurrentLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     position => {
                         getWeather(position.coords.latitude, position.coords.longitude);
-                        startWeatherUpdate(); // Start updating weather every 10 seconds
+                        startWeatherUpdate();
                     },
                     error => {
                         alert('Location access denied. Please enter a city manually.');
@@ -238,6 +302,6 @@
                 alert('Geolocation is not supported by this browser.');
             }
         }
-    </script>
+    </script>    
 </body>
 </html>
