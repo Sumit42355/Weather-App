@@ -215,14 +215,13 @@
         }
         
         function getSunMoonImage(hour) {
-    if (hour >= 18 && hour < 24) {
+    if (hour >= 6 && hour < 18) {
         return 'https://static.vecteezy.com/system/resources/previews/009/663/724/large_2x/sun-sun-ray-icon-transparent-free-png.png'; // Sun
-    } else if (hour >= 6 && hour < 18) {
-        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon
     } else {
-        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon (for night hours, including early morning)
+        return 'https://cdn1.iconfinder.com/data/icons/smashicons-weather-flat/48/65_-_Moon_Flat-512.png'; // Moon (for evening and night hours)
     }
 }
+
 
         function getCurrentLocation() {
             if (navigator.geolocation) {
